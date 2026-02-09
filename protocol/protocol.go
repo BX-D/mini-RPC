@@ -23,8 +23,8 @@ const (
 )
 
 const (
-    CodecTypeJSON   byte = 0
-    CodecTypeBinary byte = 1
+	CodecTypeJSON   byte = 0
+	CodecTypeBinary byte = 1
 )
 
 type Header struct {
@@ -54,7 +54,7 @@ func Encode(w io.Writer, h *Header, body []byte) error {
 	if _, err := w.Write(buf); err != nil {
 		return err
 	}
-	
+
 	if _, err := w.Write(body); err != nil {
 		return err
 	}
@@ -63,9 +63,9 @@ func Encode(w io.Writer, h *Header, body []byte) error {
 
 // Decode 从 reader 读取帧头和消息体
 func Decode(r io.Reader) (*Header, []byte, error) {
-    // 读 14 字节帧头
+	// 读 14 字节帧头
 	headerBuf := make([]byte, HeaderSize)
-    // 校验 magic
+	// 校验 magic
 	if _, err := io.ReadFull(r, headerBuf); err != nil {
 		return nil, nil, err
 	}
@@ -73,7 +73,7 @@ func Decode(r io.Reader) (*Header, []byte, error) {
 	if headerBuf[0] != MagicNumber || headerBuf[1] != MagicByte2 || headerBuf[2] != MagicByte3 {
 		return nil, nil, fmt.Errorf("invalid magic number: %x", headerBuf[0:3])
 	}
-    // Decode version
+	// Decode version
 	if headerBuf[3] != Version {
 		return nil, nil, fmt.Errorf("unsupported version: %d", headerBuf[3])
 	}
@@ -81,12 +81,12 @@ func Decode(r io.Reader) (*Header, []byte, error) {
 	if headerBuf[4] != CodecTypeJSON && headerBuf[4] != CodecTypeBinary {
 		return nil, nil, fmt.Errorf("unsupported codec type: %d", headerBuf[4])
 	}
-    // Decode msg type
+	// Decode msg type
 	msgType := headerBuf[5]
 	if msgType != byte(MsgTypeRequest) && msgType != byte(MsgTypeResponse) && msgType != byte(MsgTypeHeartbeat) {
 		return nil, nil, fmt.Errorf("unsupported message type: %d", msgType)
 	}
-	
+
 	// Decode sequence number
 	seq := binary.BigEndian.Uint32(headerBuf[6:10])
 	// Decode body length
