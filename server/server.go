@@ -63,10 +63,10 @@ func (svr *Server) handleConn(conn net.Conn) {
 
 func (svr *Server) handleRequest(header *protocol.Header, body []byte, conn net.Conn) {
 	// Get formatting codec
-	codec := codec.GetCodec(codec.CodecType(header.CodecType))
+	c := codec.GetCodec(codec.CodecType(header.CodecType))
 	msg := message.RPCMessage{}
 	// Decode body to msg
-	codec.Decode(body, &msg)
+	c.Decode(body, &msg)
 	// Get service name and method name
 	split := strings.Split(msg.ServiceMethod, ".")
 	serviceName := split[0]
@@ -88,7 +88,7 @@ func (svr *Server) handleRequest(header *protocol.Header, body []byte, conn net.
 		errorMessage := message.RPCMessage{
 			Error: err.Error(),
 		}
-		encodedErrorBody, err := codec.Encode(&errorMessage)
+		encodedErrorBody, err := c.Encode(&errorMessage)
 		if err != nil {
 			return
 		}
@@ -122,7 +122,7 @@ func (svr *Server) handleRequest(header *protocol.Header, body []byte, conn net.
 		rpcMessage.Error = methodErr.Error()
 	}
 	// Encode body
-	result, err := codec.Encode(&rpcMessage)
+	result, err := c.Encode(&rpcMessage)
 
 	if err != nil {
 		log.Println("Failed to encode method result")
