@@ -85,11 +85,10 @@ func (r *EtcdRegistry) Watch(serviceName string) <-chan []ServiceInstance {
 	go func() {
 		watchChan := r.client.Watch(ctx, prefix, clientv3.WithPrefix())
 		for range watchChan {
-			for range watchChan {
-				instances, _ := r.Discover(serviceName)
-				ch <- instances
-			}
+			instances, _ := r.Discover(serviceName)
+			ch <- instances
 		}
+
 	}()
 
 	return ch
