@@ -69,6 +69,29 @@ func (svr *Server) handleRequest(header *protocol.Header, body []byte, conn net.
 	c.Decode(body, &msg)
 	// Get service name and method name
 	split := strings.Split(msg.ServiceMethod, ".")
+
+	if len(split) != 2 {
+		errorMessage := message.RPCMessage{
+			Error: "invalid service method format",
+		}
+		encodedErrorBody, err := c.Encode(&errorMessage)
+		if err != nil {
+			return
+		}
+		replyHeader := protocol.Header{
+			CodecType: header.CodecType,
+			MsgType:   protocol.MsgTypeResponse,
+			Seq:       header.Seq,
+			BodyLen:   uint32(len(encodedErrorBody)),
+		}
+
+		err = protocol.Encode(conn, &replyHeader, encodedErrorBody)
+		if err != nil {
+			return
+		}
+		return
+	}
+
 	serviceName := split[0]
 	methodName := split[1]
 

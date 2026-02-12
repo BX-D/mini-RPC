@@ -94,7 +94,7 @@ func (c *Client) Call(serviceMethod string, args any, reply any) error {
 	}
 
 	// Unmarshal the payload to reply
-	err = json.Unmarshal(responseRPC.Payload, reply)
+	err = json.Unmarshal(responseRPC.Payload, &reply)
 
 	if err != nil {
 		return err
