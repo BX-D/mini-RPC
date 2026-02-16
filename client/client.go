@@ -4,26 +4,53 @@ import (
 	"encoding/json"
 	"fmt"
 	"mini-rpc/codec"
+	"mini-rpc/loadbalance"
 	"mini-rpc/message"
 	"mini-rpc/protocol"
+	"mini-rpc/registry"
+	"mini-rpc/transport"
 	"net"
+	"strings"
+	"sync"
+	"sync/atomic"
 )
 
 type Client struct {
-	conn      net.Conn
+	registry  registry.Registry // find service instance from registry
+	balancer  loadbalance.Balancer
+	pools     map[string]*transport.ConnPool // Each addr has a connection pool
 	codecType codec.CodecType
+	mu        sync.Mutex
 	seq       uint32
 }
 
-func NewClient(conn net.Conn, codecType byte) *Client {
+func NewClient(reg registry.Registry, bal loadbalance.Balancer, codecType byte) *Client {
 	return &Client{
-		conn:      conn,
+		registry:  reg,
+		balancer:  bal,
+		pools:     make(map[string]*transport.ConnPool),
 		codecType: codec.CodecType(codecType),
 	}
 }
 
+func (c *Client) getPool(addr string) *transport.ConnPool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if pool, ok := c.pools[addr]; ok {
+		return pool
+	}
+
+	// Create a new connection pool for the address
+	pool := transport.NewConnPool(addr, 5, func() (net.Conn, error) {
+		return net.Dial("tcp", addr)
+	})
+	c.pools[addr] = pool
+	return pool
+}
+
 func (c *Client) Call(serviceMethod string, args any, reply any) error {
-	c.seq++
+	//c.seq.Add(1)
+	atomic.AddUint32(&c.seq, 1)
 	// Marshal args to json
 	payload, err := json.Marshal(args)
 	if err != nil {
@@ -54,16 +81,50 @@ func (c *Client) Call(serviceMethod string, args any, reply any) error {
 		BodyLen:   uint32(len(body)),
 	}
 
+	// Get a connection from the pool
+	split := strings.Split(serviceMethod, ".")
+
+	if len(split) != 2 {
+		return fmt.Errorf("invalid serviceMethod format: %v", serviceMethod)
+	}
+
+	serviceName := split[0]
+
+	// Get service instances from registry
+	instances, err := c.registry.Discover(serviceName)
+
+	if err != nil {
+		return err
+	}
+
+	// Select an instance using load balancer
+	instance, err := c.balancer.Pick(instances)
+
+	if err != nil {
+		return err
+	}
+
+	// Get the connection pool for the selected instance
+	pool := c.getPool(instance.Addr)
+
+	// Get a connection from the pool
+	conn, err := pool.Get()
+
+	if err != nil {
+		return err
+	}
+
+	defer pool.Put(conn)
+
 	// Send the request
-	err = protocol.Encode(c.conn, &header, body)
+	err = protocol.Encode(conn, &header, body)
 
 	if err != nil {
 		return err
 	}
 
 	// Wait for the response
-	replyHeader, responseBody, err := protocol.Decode(c.conn)
-
+	replyHeader, responseBody, err := protocol.Decode(conn)
 	if err != nil {
 		return err
 	}
