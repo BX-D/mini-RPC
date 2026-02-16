@@ -13,7 +13,7 @@ var testInstances = []registry.ServiceInstance{
 }
 
 func TestRoundRobin(t *testing.T) {
-	b := &RoundRobinbalancer{}
+	b := &RoundRobinBalancer{}
 
 	// Pick 3 times, should cycle through all instances
 	results := make([]string, 3)
@@ -33,7 +33,7 @@ func TestRoundRobin(t *testing.T) {
 }
 
 func TestRoundRobinEmpty(t *testing.T) {
-	b := &RoundRobinbalancer{}
+	b := &RoundRobinBalancer{}
 	_, err := b.Pick([]registry.ServiceInstance{})
 	if err == nil {
 		t.Fatal("expect error for empty instances")

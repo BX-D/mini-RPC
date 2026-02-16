@@ -53,8 +53,8 @@ func TestFullIntegrationWithEtcd(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// 3. 创建 Client（用同一个 registry 做服务发现）
-	bal := &loadbalance.RoundRobinbalancer{}
-	cli := client.NewClient(reg, bal, byte(codec.CodecTypeJSON))
+	bal := &loadbalance.RoundRobinBalancer{}
+	cli := client.NewClient(reg, bal, byte(codec.CodecTypeJSON), 8)
 
 	// 4. 测试 Add
 	reply := &Reply{}
@@ -105,8 +105,8 @@ func TestMultiServerWithEtcd(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// 3. 创建 Client
-	bal := &loadbalance.RoundRobinbalancer{}
-	cli := client.NewClient(reg, bal, byte(codec.CodecTypeJSON))
+	bal := &loadbalance.RoundRobinBalancer{}
+	cli := client.NewClient(reg, bal, byte(codec.CodecTypeJSON), 8)
 
 	// 4. 发 10 个请求，验证全部正确
 	for i := 1; i <= 10; i++ {

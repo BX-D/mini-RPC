@@ -6,13 +6,13 @@ import (
 	"sync/atomic"
 )
 
-// RoundRobinbalancer 轮询负载均衡器
-type RoundRobinbalancer struct {
+// RoundRobinBalancer 轮询负载均衡器
+type RoundRobinBalancer struct {
 	counter int64
 }
 
 // Pick 从服务实例列表中选择一个实例
-func (b *RoundRobinbalancer) Pick(instances []registry.ServiceInstance) (*registry.ServiceInstance, error) {
+func (b *RoundRobinBalancer) Pick(instances []registry.ServiceInstance) (*registry.ServiceInstance, error) {
 	if len(instances) == 0 {
 		return nil, fmt.Errorf("no instances available")
 	}
@@ -23,6 +23,6 @@ func (b *RoundRobinbalancer) Pick(instances []registry.ServiceInstance) (*regist
 }
 
 // Name 返回负载均衡器的名称
-func (b *RoundRobinbalancer) Name() string {
+func (b *RoundRobinBalancer) Name() string {
 	return "RoundRobin"
 }

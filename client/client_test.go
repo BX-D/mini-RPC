@@ -79,8 +79,8 @@ func TestClientWithRegistryAndLB(t *testing.T) {
 	reg.Register("Arith", registry.ServiceInstance{Addr: "127.0.0.1:18080", Weight: 1}, 10)
 
 	// 3. 创建 Client
-	bal := &loadbalance.RoundRobinbalancer{}
-	client := NewClient(reg, bal, byte(codec.CodecTypeJSON))
+	bal := &loadbalance.RoundRobinBalancer{}
+	client := NewClient(reg, bal, byte(codec.CodecTypeJSON), 4)
 
 	// 4. 调用 Arith.Add(1, 2) = 3
 	reply := &Reply{}
@@ -123,8 +123,8 @@ func TestClientMultipleInstances(t *testing.T) {
 	reg.Register("Arith", registry.ServiceInstance{Addr: "127.0.0.1:18082", Weight: 1}, 10)
 
 	// RoundRobin 负载均衡
-	bal := &loadbalance.RoundRobinbalancer{}
-	client := NewClient(reg, bal, byte(codec.CodecTypeJSON))
+	bal := &loadbalance.RoundRobinBalancer{}
+	client := NewClient(reg, bal, byte(codec.CodecTypeJSON), 4)
 
 	// 发 10 个请求，RoundRobin 应该交替打到两个 server
 	for i := 0; i < 10; i++ {
