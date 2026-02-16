@@ -10,22 +10,24 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 type Client struct {
 	registry   registry.Registry // find service instance from registry
 	balancer   loadbalance.Balancer
-	transports map[string]chan *transport.ClientTransport // transport for each service instance
+	transports map[string][]*transport.ClientTransport // transport for each service instance
 	codecType  codec.CodecType
 	mu         sync.Mutex
 	poolSize   int
+	counter    uint64
 }
 
 func NewClient(reg registry.Registry, bal loadbalance.Balancer, codecType byte, poolSize int) *Client {
 	return &Client{
 		registry:   reg,
 		balancer:   bal,
-		transports: make(map[string]chan *transport.ClientTransport),
+		transports: make(map[string][]*transport.ClientTransport),
 		codecType:  codec.CodecType(codecType),
 		poolSize:   poolSize,
 	}
@@ -33,33 +35,25 @@ func NewClient(reg registry.Registry, bal loadbalance.Balancer, codecType byte, 
 
 func (c *Client) getTransport(addr string) (*transport.ClientTransport, error) {
 	// Check if transport pool exists for the address
+	n := atomic.AddUint64(&c.counter, 1)
 	c.mu.Lock()
 	pool, ok := c.transports[addr]
 
 	if !ok {
 		// No pool exists, create one
-		pool = make(chan *transport.ClientTransport, c.poolSize)
+		pool = make([]*transport.ClientTransport, c.poolSize)
 		c.transports[addr] = pool
-	}
-
-	c.mu.Unlock()
-
-	if !ok {
 		// Create initial transports and fill the pool
 		for i := 0; i < c.poolSize; i++ {
 			conn, err := net.Dial("tcp", addr)
 			if err != nil {
 				return nil, err
 			}
-			pool <- transport.NewClientTransport(conn, c.codecType)
+			pool[i] = transport.NewClientTransport(conn, c.codecType)
 		}
 	}
-
-	return <-pool, nil
-}
-
-func (c *Client) putTransport(addr string, t *transport.ClientTransport) {
-	c.transports[addr] <- t
+	c.mu.Unlock()
+	return pool[n%uint64(c.poolSize)], nil
 }
 
 func (c *Client) Call(serviceMethod string, args any, reply any) error {
@@ -92,8 +86,6 @@ func (c *Client) Call(serviceMethod string, args any, reply any) error {
 	if err != nil {
 		return err
 	}
-
-	defer c.putTransport(instance.Addr, t)
 
 	// Send the request and wait for the response
 	_, ch, err := t.Send(serviceMethod, args)
