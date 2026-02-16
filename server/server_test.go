@@ -30,7 +30,7 @@ func TestServer(t *testing.T) {
 	// Start a server
 	svr := NewServer()
 
-	go svr.Serve("tcp", ":8888")
+	go svr.Serve("tcp", ":8888", "", nil)
 
 	err := svr.Register(&Arith{})
 

@@ -71,7 +71,7 @@ func TestClientWithRegistryAndLB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go svr.Serve("tcp", ":18080")
+	go svr.Serve("tcp", ":18080", "", nil)
 	time.Sleep(100 * time.Millisecond)
 
 	// 2. Mock Registry：手动注册服务实例
@@ -109,11 +109,11 @@ func TestClientMultipleInstances(t *testing.T) {
 	// 启动 2 个 Server 实例
 	svr1 := server.NewServer()
 	svr1.Register(&Arith{})
-	go svr1.Serve("tcp", ":18081")
+	go svr1.Serve("tcp", ":18081", "", nil)
 
 	svr2 := server.NewServer()
 	svr2.Register(&Arith{})
-	go svr2.Serve("tcp", ":18082")
+	go svr2.Serve("tcp", ":18082", "", nil)
 
 	time.Sleep(100 * time.Millisecond)
 

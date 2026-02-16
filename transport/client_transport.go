@@ -7,6 +7,7 @@ import (
 	"mini-rpc/protocol"
 	"net"
 	"sync"
+	"time"
 )
 
 type ClientTransport struct {
@@ -23,6 +24,7 @@ func NewClientTransport(conn net.Conn, codec codec.CodecType) *ClientTransport {
 		codec: codec,
 	}
 	go transport.recvLoop()
+	go transport.heartbeatLoop(30 * time.Second)
 
 	return transport
 }
@@ -112,4 +114,27 @@ func (t *ClientTransport) closeAllPending(err error) {
 	})
 	// Delete all pending channels
 	t.pending.Clear()
+}
+
+func (t *ClientTransport) Conn() net.Conn {
+	return t.conn
+}
+
+func (t *ClientTransport) heartbeatLoop(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for range ticker.C {
+		// Construct a heartbeat message
+		header := &protocol.Header{
+			MsgType: protocol.MsgTypeHeartbeat,
+			BodyLen: 0,
+		}
+		// Send the heartbeat
+		t.sending.Lock()
+		err := protocol.Encode(t.conn, header, nil)
+		t.sending.Unlock()
+		if err != nil {
+			return
+		}
+	}
 }

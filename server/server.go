@@ -19,12 +19,14 @@ import (
 )
 
 type Server struct {
-	serviceMap  map[string]*service
-	listener    net.Listener
-	wg          sync.WaitGroup
-	shutdown    atomic.Bool
-	middlewares []middleware.Middleware
-	handler     middleware.HandlerFunc
+	serviceMap    map[string]*service
+	listener      net.Listener
+	wg            sync.WaitGroup
+	shutdown      atomic.Bool
+	middlewares   []middleware.Middleware
+	handler       middleware.HandlerFunc
+	registry      registry.Registry
+	advertiseAddr string
 }
 
 func NewServer() *Server {
@@ -43,7 +45,7 @@ func (svr *Server) Register(rcvr any) error {
 	return nil
 }
 
-func (svr *Server) Serve(network, address string) error {
+func (svr *Server) Serve(network, address string, advertiseAddr string, reg registry.Registry) error {
 	// Create a listener and bind to a port
 	listener, err := net.Listen(network, address)
 	svr.listener = listener
@@ -53,6 +55,17 @@ func (svr *Server) Serve(network, address string) error {
 
 	if err != nil {
 		return err
+	}
+
+	// Register to etcd
+	svr.advertiseAddr = advertiseAddr
+	if reg != nil {
+		svr.registry = reg
+		for serviceName := range svr.serviceMap {
+			svr.registry.Register(serviceName, registry.ServiceInstance{
+				Addr: advertiseAddr,
+			}, 10)
+		}
 	}
 
 	for {
@@ -79,6 +92,11 @@ func (svr *Server) handleConn(conn net.Conn) {
 		if err != nil {
 			break
 		}
+
+		if header.MsgType == protocol.MsgTypeHeartbeat {
+			continue
+		}
+
 		svr.handleRequest(header, body, conn)
 	}
 }
@@ -118,10 +136,12 @@ func (svr *Server) handleRequest(header *protocol.Header, body []byte, conn net.
 }
 
 // Shutdown the server
-func (svr *Server) Shutdown(registry registry.Registry, timeout time.Duration) error {
+func (svr *Server) Shutdown(timeout time.Duration) error {
 	// Derigistry from etcd
 	for serviceName := range svr.serviceMap {
-		registry.Deregister(serviceName, svr.listener.Addr().String())
+		if svr.registry != nil {
+			svr.registry.Deregister(serviceName, svr.advertiseAddr)
+		}
 	}
 	// Close the listener
 	svr.shutdown.Store(true)

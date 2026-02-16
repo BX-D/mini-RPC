@@ -31,7 +31,7 @@ func TestClientTransportSerial(t *testing.T) {
 	if err := svr.Register(&Arith{}); err != nil {
 		t.Fatal(err)
 	}
-	go svr.Serve("tcp", ":9001")
+	go svr.Serve("tcp", ":9001", "", nil)
 	time.Sleep(100 * time.Millisecond)
 
 	conn, err := net.Dial("tcp", ":9001")
@@ -78,7 +78,7 @@ func TestClientTransportConcurrent(t *testing.T) {
 	if err := svr.Register(&Arith{}); err != nil {
 		t.Fatal(err)
 	}
-	go svr.Serve("tcp", ":9002")
+	go svr.Serve("tcp", ":9002", "", nil)
 	time.Sleep(100 * time.Millisecond)
 
 	conn, err := net.Dial("tcp", ":9002")

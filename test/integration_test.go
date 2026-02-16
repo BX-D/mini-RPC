@@ -34,7 +34,7 @@ func (a *Arith) Multiply(args *Args, reply *Reply) error {
 }
 
 // TestFullIntegrationWithEtcd 完整端到端测试
-// 链路: Client → Registry(etcd) → LB → ConnPool → Protocol → Codec → Middleware → Server → 反射调用
+// 链路: Client → Registry(etcd) → LB → Transport → Protocol → Codec → Middleware → Server → 反射调用
 func TestFullIntegrationWithEtcd(t *testing.T) {
 	// 1. 连接 etcd
 	reg, err := registry.NewEtcdRegistry([]string{"127.0.0.1:2379"})
@@ -42,30 +42,21 @@ func TestFullIntegrationWithEtcd(t *testing.T) {
 		t.Fatalf("failed to connect etcd: %v", err)
 	}
 
-	// 2. 启动 Server，挂载中间件
+	// 2. 启动 Server，挂载中间件，自动注册到 etcd
 	svr := server.NewServer()
 	svr.Use(middleware.LoggingMiddleware())
 	err = svr.Register(&Arith{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	go svr.Serve("tcp", ":19090")
+	go svr.Serve("tcp", ":19090", "127.0.0.1:19090", reg)
 	time.Sleep(100 * time.Millisecond)
 
-	// 3. 向 etcd 注册服务实例
-	err = reg.Register("Arith", registry.ServiceInstance{
-		Addr:   "127.0.0.1:19090",
-		Weight: 10,
-	}, 10)
-	if err != nil {
-		t.Fatalf("failed to register: %v", err)
-	}
-
-	// 4. 创建 Client（用同一个 registry 做服务发现）
+	// 3. 创建 Client（用同一个 registry 做服务发现）
 	bal := &loadbalance.RoundRobinbalancer{}
 	cli := client.NewClient(reg, bal, byte(codec.CodecTypeJSON))
 
-	// 5. 测试 Add
+	// 4. 测试 Add
 	reply := &Reply{}
 	err = cli.Call("Arith.Add", &Args{A: 3, B: 5}, reply)
 	if err != nil {
@@ -75,7 +66,7 @@ func TestFullIntegrationWithEtcd(t *testing.T) {
 		t.Fatalf("Add: expect 8, got %d", reply.Result)
 	}
 
-	// 6. 测试 Multiply
+	// 5. 测试 Multiply
 	reply2 := &Reply{}
 	err = cli.Call("Arith.Multiply", &Args{A: 4, B: 6}, reply2)
 	if err != nil {
@@ -87,8 +78,8 @@ func TestFullIntegrationWithEtcd(t *testing.T) {
 
 	t.Log("Full integration test with etcd passed!")
 
-	// 7. 清理：注销 + 关闭 server
-	svr.Shutdown(reg, 3*time.Second)
+	// 6. 清理：Shutdown 会自动从 etcd 注销
+	svr.Shutdown(3 * time.Second)
 }
 
 // TestMultiServerWithEtcd 多实例 + 负载均衡 + etcd
@@ -102,26 +93,22 @@ func TestMultiServerWithEtcd(t *testing.T) {
 	// 清理上个测试残留的 etcd 数据
 	reg.Deregister("Arith", "127.0.0.1:19090")
 
-	// 2. 启动 2 个 Server
+	// 2. 启动 2 个 Server，自动注册到 etcd
 	svr1 := server.NewServer()
 	svr1.Register(&Arith{})
-	go svr1.Serve("tcp", ":19091")
+	go svr1.Serve("tcp", ":19091", "127.0.0.1:19091", reg)
 
 	svr2 := server.NewServer()
 	svr2.Register(&Arith{})
-	go svr2.Serve("tcp", ":19092")
+	go svr2.Serve("tcp", ":19092", "127.0.0.1:19092", reg)
 
 	time.Sleep(100 * time.Millisecond)
 
-	// 3. 注册 2 个实例到 etcd
-	reg.Register("Arith", registry.ServiceInstance{Addr: "127.0.0.1:19091", Weight: 10}, 10)
-	reg.Register("Arith", registry.ServiceInstance{Addr: "127.0.0.1:19092", Weight: 10}, 10)
-
-	// 4. 创建 Client
+	// 3. 创建 Client
 	bal := &loadbalance.RoundRobinbalancer{}
 	cli := client.NewClient(reg, bal, byte(codec.CodecTypeJSON))
 
-	// 5. 发 10 个请求，验证全部正确
+	// 4. 发 10 个请求，验证全部正确
 	for i := 1; i <= 10; i++ {
 		reply := &Reply{}
 		err := cli.Call("Arith.Add", &Args{A: i, B: i * 10}, reply)
@@ -136,7 +123,7 @@ func TestMultiServerWithEtcd(t *testing.T) {
 
 	t.Log("Multi-server integration test with etcd passed!")
 
-	// 6. 清理
-	svr1.Shutdown(reg, 3*time.Second)
-	svr2.Shutdown(reg, 3*time.Second)
+	// 5. 清理
+	svr1.Shutdown(3 * time.Second)
+	svr2.Shutdown(3 * time.Second)
 }
