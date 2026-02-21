@@ -8,8 +8,8 @@
 //
 //	0      3  4  5  6         10        14
 //	┌──────┬──┬──┬──┬─────────┬─────────┬───────────────┐
-//	│magic │v │ct│mt│   seq   │ bodyLen │    body ...    │
-//	│ mrp  │01│  │  │ uint32  │ uint32  │ bodyLen bytes  │
+//	│magic │v │ct│mt│   seq   │ bodyLen │    body ...   │
+//	│ mrp  │01│  │  │ uint32  │ uint32  │ bodyLen bytes │
 //	└──────┴──┴──┴──┴─────────┴─────────┴───────────────┘
 package protocol
 
