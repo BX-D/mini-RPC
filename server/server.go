@@ -87,6 +87,7 @@ func (svr *Server) Use(mw middleware.Middleware) {
 
 func (svr *Server) handleConn(conn net.Conn) {
 	defer conn.Close()
+	writeMu := &sync.Mutex{}
 	for {
 		header, body, err := protocol.Decode(conn)
 		if err != nil {
@@ -97,11 +98,11 @@ func (svr *Server) handleConn(conn net.Conn) {
 			continue
 		}
 
-		svr.handleRequest(header, body, conn)
+		go svr.handleRequest(header, body, conn, writeMu)
 	}
 }
 
-func (svr *Server) handleRequest(header *protocol.Header, body []byte, conn net.Conn) {
+func (svr *Server) handleRequest(header *protocol.Header, body []byte, conn net.Conn, writeMu *sync.Mutex) {
 	// Wg add 1 for each request
 	svr.wg.Add(1)
 	defer svr.wg.Done()
@@ -114,6 +115,8 @@ func (svr *Server) handleRequest(header *protocol.Header, body []byte, conn net.
 
 	// Call handler to get reply message
 	rpcMessage := svr.handler(context.Background(), &msg)
+	writeMu.Lock()
+	defer writeMu.Unlock()
 	// Encode body
 	result, err := c.Encode(rpcMessage)
 

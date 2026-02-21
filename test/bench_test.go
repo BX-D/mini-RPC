@@ -21,7 +21,7 @@ func NewMockRegistry() *MockRegistry {
 	return &MockRegistry{instances: make(map[string][]registry.ServiceInstance)}
 }
 
-func (m *MockRegistry) Register(serviceName string, inst registry.ServiceInstance, ttl int64) error {
+func (m *MockRegistry) Register(serviceName string, inst registry.ServiceInstance) error {
 	m.instances[serviceName] = append(m.instances[serviceName], inst)
 	return nil
 }
@@ -100,7 +100,41 @@ func BenchmarkConcurrentCall(b *testing.B) {
 	})
 }
 
-// 场景3: JSON 编解码性能（不走网络，纯 codec）
+// 场景3: 模拟耗时 handler，串行调用（体现 server 串行瓶颈）
+func BenchmarkSlowSerialCall(b *testing.B) {
+	svr, cli := setupServerAndClient(b, "127.0.0.1:29092")
+	b.Cleanup(func() { svr.Shutdown(3 * time.Second) })
+
+	args := &Args{A: 1, B: 2}
+	reply := &Reply{}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		if err := cli.Call("Arith.SlowAdd", args, reply); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// 场景4: 模拟耗时 handler，并发调用（体现 server 并行化收益）
+func BenchmarkSlowConcurrentCall(b *testing.B) {
+	svr, cli := setupServerAndClient(b, "127.0.0.1:29093")
+	b.Cleanup(func() { svr.Shutdown(3 * time.Second) })
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		args := &Args{A: 1, B: 2}
+		reply := &Reply{}
+		for pb.Next() {
+			if err := cli.Call("Arith.SlowAdd", args, reply); err != nil {
+				b.Error(err)
+				return
+			}
+		}
+	})
+}
+
+// 场景5: JSON 编解码性能（不走网络，纯 codec）
 func BenchmarkCodecJSON(b *testing.B) {
 	cdc := codec.GetCodec(codec.CodecTypeJSON)
 	msg := &message.RPCMessage{

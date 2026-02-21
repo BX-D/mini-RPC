@@ -33,6 +33,12 @@ func (a *Arith) Multiply(args *Args, reply *Reply) error {
 	return nil
 }
 
+func (a *Arith) SlowAdd(args *Args, reply *Reply) error {
+	time.Sleep(1 * time.Millisecond)
+	reply.Result = args.A + args.B
+	return nil
+}
+
 // TestFullIntegrationWithEtcd 完整端到端测试
 // 链路: Client → Registry(etcd) → LB → Transport → Protocol → Codec → Middleware → Server → 反射调用
 func TestFullIntegrationWithEtcd(t *testing.T) {

@@ -8,8 +8,7 @@ import (
 )
 
 type EtcdRegistry struct {
-	client  *clientv3.Client
-	leaseID clientv3.LeaseID
+	client *clientv3.Client
 }
 
 // NewEtcdRegistry 创建Etcd注册中心
@@ -34,21 +33,19 @@ func (r *EtcdRegistry) Register(serviceName string, instance ServiceInstance, tt
 		return err
 	}
 
-	r.leaseID = lease.ID
-
 	val, err := json.Marshal(instance)
 
 	if err != nil {
 		return err
 	}
 
-	_, err = r.client.Put(ctx, "/mini-rpc/"+serviceName+"/"+instance.Addr, string(val), clientv3.WithLease(r.leaseID))
+	_, err = r.client.Put(ctx, "/mini-rpc/"+serviceName+"/"+instance.Addr, string(val), clientv3.WithLease(lease.ID))
 
 	if err != nil {
 		return err
 	}
 
-	ch, err := r.client.KeepAlive(ctx, r.leaseID)
+	ch, err := r.client.KeepAlive(ctx, lease.ID)
 
 	if err != nil {
 		return err
