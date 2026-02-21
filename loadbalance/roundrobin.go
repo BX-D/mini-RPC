@@ -6,23 +6,24 @@ import (
 	"sync/atomic"
 )
 
-// RoundRobinBalancer 轮询负载均衡器
+// RoundRobinBalancer distributes requests evenly across all instances in order.
+// Uses an atomic counter for lock-free, goroutine-safe operation.
+//
+// Best for: stateless services where all instances have similar capacity.
 type RoundRobinBalancer struct {
-	counter int64
+	counter int64 // Atomic counter, incremented on each Pick()
 }
 
-// Pick 从服务实例列表中选择一个实例
+// Pick selects the next instance in round-robin order.
+// The atomic counter ensures even distribution without locks.
 func (b *RoundRobinBalancer) Pick(instances []registry.ServiceInstance) (*registry.ServiceInstance, error) {
 	if len(instances) == 0 {
 		return nil, fmt.Errorf("no instances available")
 	}
-
-	// 轮询选择实例
 	index := atomic.AddInt64(&b.counter, 1) % int64(len(instances))
 	return &instances[index], nil
 }
 
-// Name 返回负载均衡器的名称
 func (b *RoundRobinBalancer) Name() string {
 	return "RoundRobin"
 }

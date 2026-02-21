@@ -6,6 +6,16 @@ import (
 	"mini-rpc/registry"
 )
 
+// WeightedRandomBalancer selects instances probabilistically based on their weight.
+// An instance with weight 10 gets roughly 2x the traffic of one with weight 5.
+//
+// Best for: heterogeneous instances (e.g., some servers have more CPU/memory).
+//
+// Algorithm:
+//  1. Sum all weights → totalWeight
+//  2. Generate random number r in [0, totalWeight)
+//  3. Subtract each instance's weight from r until r < 0
+//  4. The instance that makes r negative is selected
 type WeightedRandomBalancer struct{}
 
 func (b *WeightedRandomBalancer) Pick(instances []registry.ServiceInstance) (*registry.ServiceInstance, error) {
@@ -13,13 +23,13 @@ func (b *WeightedRandomBalancer) Pick(instances []registry.ServiceInstance) (*re
 		return nil, fmt.Errorf("no instances available")
 	}
 
-	// 计算总权重
+	// Calculate total weight
 	totalWeight := 0
 	for _, v := range instances {
 		totalWeight += v.Weight
 	}
 
-	// 生成一个随机数，范围是0到总权重
+	// Random selection proportional to weight
 	r := rand.Intn(totalWeight)
 	for _, v := range instances {
 		r -= v.Weight
