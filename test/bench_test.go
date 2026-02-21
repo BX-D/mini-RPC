@@ -21,7 +21,7 @@ func NewMockRegistry() *MockRegistry {
 	return &MockRegistry{instances: make(map[string][]registry.ServiceInstance)}
 }
 
-func (m *MockRegistry) Register(serviceName string, inst registry.ServiceInstance) error {
+func (m *MockRegistry) Register(serviceName string, inst registry.ServiceInstance, ttl int64) error {
 	m.instances[serviceName] = append(m.instances[serviceName], inst)
 	return nil
 }

@@ -595,13 +595,11 @@ type Registry interface {
 
 type EtcdRegistry struct {
     client  *clientv3.Client
-    leaseID clientv3.LeaseID
 }
 
 func (r *EtcdRegistry) Register(serviceName string, inst ServiceInstance, ttl int64) error {
-    // 1. 创建租约
+    // 1. 创建租约 (局部变量，不存结构体，避免并发 race)
     lease, _ := r.client.Grant(context.TODO(), ttl)
-    r.leaseID = lease.ID
 
     // 2. 注册 KV（带租约）
     key := fmt.Sprintf("/mini-rpc/%s/%s", serviceName, inst.Addr)
@@ -910,24 +908,30 @@ Day 9 (2/14): ✅ 安装并启动 etcd (Docker)
               🎯 产出: 服务注册后能被发现，下线后 Watch 能感知
 
 Day 10 (2/15): ✅ 实现三种负载均衡: RoundRobin, WeightedRandom, ConsistentHash
-               📝 将 Registry + LB 集成到 Client (待做)
-               📝 Client 改造: 自动发现 → 选择实例 → 建连/复用 (待做)
+               ✅ 将 Registry + LB 集成到 Client
+               ✅ Client 改造: 自动发现 → 选择实例 → 建连/复用
                🎯 产出: 三种负载均衡单元测试全部通过
 
-Day 11 (2/16): 📝 实现中间件链: Chain 函数
-               📝 实现 TimeoutMiddleware
-               📝 实现 RateLimitMiddleware (令牌桶)
-               📝 实现 LoggingMiddleware
+Day 11 (2/16): ✅ 实现中间件链: Chain 函数
+               ✅ 实现 TimeoutMiddleware
+               ✅ 实现 RateLimitMiddleware (令牌桶)
+               ✅ 实现 LoggingMiddleware
+               ✅ Server 中间件集成 (businessHandler 提取 + Chain 包装)
+               ✅ Client 集成 Registry + LB + ClientTransport 多路复用
                🎯 产出: 中间件能正确执行前置/后置逻辑
 
-Day 12 (2/17): 📝 优雅关闭 (Graceful Shutdown)
-               📝 心跳保活机制
-               📝 整体联调: 启动 etcd + 多个 Server + Client 中间件 + 负载均衡
+Day 12 (2/17): ✅ 优雅关闭 (Graceful Shutdown)
+               ✅ Server 自管理 etcd 注册/注销 (Serve 参数 advertiseAddr + reg)
+               ✅ 心跳保活机制 (ClientTransport heartbeatLoop, Server 跳过心跳包)
+               ✅ 整体联调: 启动 etcd + 多个 Server + Client 中间件 + 负载均衡
                🎯 产出: 完整 Demo 能跑通
 
-Day 13 (2/18): 📝 Benchmark: 和 gRPC 对比 QPS/延迟/内存
-               📝 写 README (架构图、设计决策、性能数据)
-               📝 写 examples/ 目录的使用示例
+Day 13 (2/18-20): ✅ Benchmark: Serial/Concurrent/SlowHandler/JSON/Binary codec
+               ✅ pprof 火焰图分析 (82% CPU 在 syscall, codec/reflect 可忽略)
+               ✅ 连接池 + 多路复用组合优化 (独占池 → 共享池 round-robin)
+               ✅ Server 并行化处理 (go handleRequest + per-conn writeMu)
+               ✅ go test -race 全量通过 (修复 EtcdRegistry leaseID race)
+               ✅ 命名清理 (RoundRobinbalancer → RoundRobinBalancer)
                🎯 里程碑: ✅ Mini-RPC 完成，可以写进简历！
 ```
 
