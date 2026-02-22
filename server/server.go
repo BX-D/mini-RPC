@@ -36,7 +36,7 @@ type Server struct {
 	handler       middleware.HandlerFunc  // The final handler chain: middleware(middleware(...(businessHandler)))
 	registry      registry.Registry       // Service registry (etcd), nil if not using discovery
 	advertiseAddr string                  // Address registered in etcd (e.g., "127.0.0.1:8080")
-	//                                       Different from listen address (":8080") because etcd needs a routable IP
+	// Different from listen address (":8080") because etcd needs a routable IP
 }
 
 // NewServer creates a new RPC server with an empty service map.

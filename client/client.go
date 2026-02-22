@@ -4,7 +4,7 @@
 // Call flow:
 //
 //	Call("Arith.Add", args, reply)
-//	  → Registry.Discover("Arith")   → get instance list from etcd
+//	  → Registry.Discover("Arith")    → get instance list from etcd
 //	  → Balancer.Pick(instances)      → select one address
 //	  → getTransport(addr)            → get a shared transport (round-robin)
 //	  → transport.Send()              → send request, get response channel
