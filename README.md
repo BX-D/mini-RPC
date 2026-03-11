@@ -1,6 +1,6 @@
 # Mini-RPC
 
-A lightweight RPC framework built from scratch in Go, designed to demonstrate deep understanding of RPC internals.
+A lightweight Go RPC framework and reference implementation for learning production-style RPC internals, including custom protocol design, service discovery, load balancing, multiplexing, and middleware.
 
 ## Features
 
